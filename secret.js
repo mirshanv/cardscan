@@ -1,0 +1,7 @@
+export const FIREBASE_API_KEY = 'AIzaSyDjgC0tjyu_xinMaCIKjs8G-nUND7xQHzc'
+export const FIREBASE_AUTH_DOMAIN = 'cezcon-crm.firebaseapp.com'
+export const FIREBASE_DATABASE_URL =  'https://cezcon-crm-default-rtdb.firebaseio.com/'
+export const FIREBASE_PROJECT_ID = 'cezcon-crm'
+export const FIREBASE_STORAGE_BUCKET = 'gs://cezcon-crm.appspot.com'
+export const FIREBASE_MESSAGING_SENDER_ID = '8724396675'
+export const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyAhTQsIizzd1jOyEN60-SH3cBAwuy6e19U'
