@@ -10,10 +10,13 @@ import {
 	Text,
 	ScrollView,
 	View,
-	Alert
+	Alert,
+	TouchableOpacity,
+	platform
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker'
 import * as Permissions from 'expo-permissions'
+import Constants from 'expo-constants';
 import uuid from 'uuid';
 import Environment from './config/environment';
 import firebase from './config/firebase';
@@ -38,28 +41,13 @@ export default class App extends React.Component {
 					style={styles.container}
 					contentContainerStyle={styles.contentContainer}
 				>
-					<View style={styles.getStartedContainer}>
-						{image ? null : (
-							<Text style={styles.getStartedText}>Google Cloud Vision</Text>
-						)}
-					</View>
-
 					<View style={styles.helpContainer}>
 						<Button
 							onPress={this._pickImage}
 							title="Pick an image from camera roll"
 						/>
-
 						<Button onPress={this._takePhoto} title="Take a photo" />
-						{/* {this.state.googleResponse && (
-							// <FlatList
-							// 	data={this.state.googleResponse.responses[0].textAnnotations}
-							// 	extraData={this.state}
-							// 	keyExtractor={this._keyExtractor}
-							// 	renderItem={({ item }) => <Text>Item: {item.description}</Text>}
-							// />
-							<Text>{this.state.googleResponse.responses[0].textAnnotations[0].description}</Text>
-						)} */}
+	
 						{this._maybeRenderImage()}
 						{this._maybeRenderUploadingOverlay()}
 					</View>
@@ -68,30 +56,19 @@ export default class App extends React.Component {
 		);
 	}
 
-	organize = array => {
-		return array.map(function (item, i) {
-			return (
-				<View key={i}>
-					<Text>{item}</Text>
-				</View>
-			);
-		});
-	};
-
 	_maybeRenderUploadingOverlay = () => {
 		if (this.state.uploading) {
 			return (
 				<View
 					style={[
-						StyleSheet.absoluteFill,
 						{
-							backgroundColor: 'rgba(0,0,0,0.4)',
+							backgroundColor: '#fff',
 							alignItems: 'center',
 							justifyContent: 'center'
 						}
 					]}
 				>
-					<ActivityIndicator color="#fff" animating size="large" />
+					<ActivityIndicator style={{marginTop:60}} color="blue" animating size="large" />
 				</View>
 			);
 		}
@@ -100,92 +77,68 @@ export default class App extends React.Component {
 	_maybeRenderImage = () => {
 		let { image, googleResponse } = this.state;
 		if (!image) {
-			return;
+			return ;
 		}
 
-		console.log("===========================", JSON.stringify(this.state.googleResponse))
-
 		return (
-			<View
-				style={{
-					marginTop: 20,
-					width: 250,
-					borderRadius: 3,
-					elevation: 2
-				}}
-			>
+			<View>
+				<View>
+					<Image source={{ uri: image }} style={{ width: 250, height: 250 }} />
+				</View>
+
 				<Button
-					style={{ marginBottom: 10 }}
+					style={{ marginBottom: 20 }}
 					onPress={() => this.submitToGoogle()}
 					title="Analyze!"
 				/>
-
-				<View
-					style={{
-						borderTopRightRadius: 3,
-						borderTopLeftRadius: 3,
-						shadowColor: 'rgba(0,0,0,1)',
-						shadowOpacity: 0.2,
-						shadowOffset: { width: 4, height: 4 },
-						shadowRadius: 5,
-						overflow: 'hidden'
-					}}
-				>
-					<Image source={{ uri: image }} style={{ width: 250, height: 250 }} />
-				</View>
-				<Text
-					onPress={this._copyToClipboard}
-					onLongPress={this._share}
-					style={{ paddingVertical: 10, paddingHorizontal: 10 }}
-				/>
-
-				{/* <Text>Raw JSON:</Text> */}
-
-				{/* {googleResponse &&
-					<Text
-						onPress={this._copyToClipboard}
-						onLongPress={this._share}
-						style={{ paddingVertical: 10, paddingHorizontal: 10 }}
-					>
-				<Text>{this.state.googleResponse.responses[0].textAnnotations[0].description}</Text>
-
-					</Text>
-				} */}
-	
-				{googleResponse && 
-				<Text style={{ paddingVertical: 10, paddingHorizontal: 10 }}>{this.state.googleResponse.responses[0].textAnnotations[0].description}</Text>
-	}
+				<View style={{marginTop:10}}>
+						{this.state.googleResponse && (
+							<FlatList
+								data={this.state.test}
+								extraData={this.state}
+								keyExtractor={(item, index) => item.id}
+								renderItem={({ item }) =><TouchableOpacity><Text> {item}</Text></TouchableOpacity> }
+							/>
+						)}
+						</View>
 			</View>
 		);
 	};
 
-	_keyExtractor = (item, index) => item.id;
 
-	_renderItem = item => {
-		<Text>response: {JSON.stringify(item)}</Text>;
-	};
+	// _share = () => {
+	// 	Share.share({
+	// 		message: JSON.stringify(this.state.googleResponse.responses),
+	// 		title: 'Check it out',
+	// 		url: this.state.image
+	// 	});
+	// };
 
-	_share = () => {
-		Share.share({
-			message: JSON.stringify(this.state.googleResponse.responses),
-			title: 'Check it out',
-			url: this.state.image
-		});
-	};
+	// _copyToClipboard = () => {
+	// 	Clipboard.setString(this.state.image);
+	// 	alert('Copied to clipboard');
+	// };
 
-	_copyToClipboard = () => {
-		Clipboard.setString(this.state.image);
-		alert('Copied to clipboard');
-	};
 
-	_takePhoto = async () => {
+	 _takePhoto = async () => {
+		if (Constants.platform.ios) {
+		  const { status: cameraStatus } = await Permissions.askAsync(
+			Permissions.CAMERA,
+		  );
+		  if (cameraStatus !== 'granted') {
+			alert('Sorry, Camera permissions not granted');
+		  }
+		}
 		let pickerResult = await ImagePicker.launchCameraAsync({
-			allowsEditing: true,
-			aspect: [4, 3]
+		  mediaTypes: ImagePicker.MediaTypeOptions.All,
+		  allowsEditing: true,
+		  aspect: [3, 3],
+		  quality: 0.2,
+		  base64: true,
 		});
-
 		this._handleImagePicked(pickerResult);
-	};
+		
+	  };
 
 	_pickImage = async () => {
 		let pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -196,6 +149,8 @@ export default class App extends React.Component {
 		this._handleImagePicked(pickerResult);
 	};
 
+
+
 	_handleImagePicked = async pickerResult => {
 		try {
 			this.setState({ uploading: true });
@@ -205,6 +160,7 @@ export default class App extends React.Component {
 				this.setState({ image: uploadUrl });
 			}
 		} catch (e) {
+			Alert.alert("eeeeeeeee",JSON.stringify(e))
 			console.log(e);
 			alert('Upload failed, sorry :(');
 		} finally {
@@ -252,8 +208,9 @@ export default class App extends React.Component {
 				}
 			);
 			let responseJson = await response.json();
-			console.log('ghg', responseJson);
+			const test = responseJson.responses[0].textAnnotations[0].description.split("\n");
 			this.setState({
+				test:test,
 				googleResponse: responseJson,
 				uploading: false
 			});
