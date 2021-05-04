@@ -12,14 +12,28 @@ import {
 	View,
 	Alert,
 	TouchableOpacity,
-	platform
+	platform,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker'
 import * as Permissions from 'expo-permissions'
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Constants from 'expo-constants';
 import uuid from 'uuid';
 import Environment from './config/environment';
-import firebase from './config/firebase';
+import * as firebase from 'firebase';
+
+const config = {
+	apiKey: Environment['FIREBASE_API_KEY'],
+	authDomain: Environment['FIREBASE_AUTH_DOMAIN'],
+	databaseURL: Environment['FIREBASE_DATABASE_URL'],
+	projectId: Environment['FIREBASE_PROJECT_ID'],
+	storageBucket: Environment['FIREBASE_STORAGE_BUCKET'],
+	messagingSenderId: Environment['FIREBASE_MESSAGING_SENDER_ID']
+};
+
+!firebase.apps.length
+	? firebase.initializeApp(config).firestore()
+	: firebase.app();
 
 export default class App extends React.Component {
 	state = {
@@ -28,10 +42,10 @@ export default class App extends React.Component {
 		googleResponse: null
 	};
 
-	async componentDidMount() {
-		await Permissions.askAsync(Permissions.CAMERA_ROLL);
-		await Permissions.askAsync(Permissions.CAMERA);
-	}
+	// async componentDidMount() {
+	// 	await Permissions.askAsync(Permissions.CAMERA_ROLL);
+	// 	await Permissions.askAsync(Permissions.CAMERA);
+	// }
 
 	render() {
 		let { image } = this.state;
@@ -42,12 +56,27 @@ export default class App extends React.Component {
 					contentContainerStyle={styles.contentContainer}
 				>
 					<View style={styles.helpContainer}>
-						<Button
-							onPress={this._pickImage}
-							title="Pick an image from camera roll"
-						/>
+						<View style={{ flexDirection: "row", padding: 10 }}>
+							<Button
+								onPress={this._pickImage}
+								title="Pick an image from camera roll"
+							/>
+							{this.state.image ?
+								<TouchableOpacity onPress={() => {
+									this.setState({ image: null })
+
+								}}>
+									<MaterialCommunityIcons
+										style={{ marginLeft: 15 }}
+										name='reload'
+										size={30}
+										color='red'
+									/>
+								</TouchableOpacity>
+								: null}
+						</View>
 						<Button onPress={this._takePhoto} title="Take a photo" />
-	
+
 						{this._maybeRenderImage()}
 						{this._maybeRenderUploadingOverlay()}
 					</View>
@@ -68,7 +97,7 @@ export default class App extends React.Component {
 						}
 					]}
 				>
-					<ActivityIndicator style={{marginTop:60}} color="blue" animating size="large" />
+					<ActivityIndicator style={{ marginTop: 60 }} color="blue" animating size="large" />
 				</View>
 			);
 		}
@@ -77,32 +106,50 @@ export default class App extends React.Component {
 	_maybeRenderImage = () => {
 		let { image, googleResponse } = this.state;
 		if (!image) {
-			return ;
-		}
+			return;
+		} else {
 
-		return (
-			<View>
+			return (
 				<View>
-					<Image source={{ uri: image }} style={{ width: 250, height: 250 }} />
-				</View>
+					<View>
+						<Image source={{ uri: image }} style={{ width: 300, height: 300, marginTop: 10 }} />
+					</View>
 
-				<Button
-					style={{ marginBottom: 20 }}
-					onPress={() => this.submitToGoogle()}
-					title="Analyze!"
-				/>
-				<View style={{marginTop:10}}>
+					<Button
+						style={{ marginBottom: 20 }}
+						onPress={() => this.submitToGoogle()}
+						title="Analyze!"
+					/>
+					<View style={{ marginTop: 10 }}>
 						{this.state.googleResponse && (
 							<FlatList
 								data={this.state.test}
 								extraData={this.state}
 								keyExtractor={(item, index) => item.id}
-								renderItem={({ item }) =><TouchableOpacity><Text> {item}</Text></TouchableOpacity> }
+								renderItem={({ item }) =>
+									<TouchableOpacity>
+										<Text style={{
+											borderStyle: 'solid',
+											borderWidth: 1,
+											borderRadius: 5,
+											paddingVertical: 5,
+											paddingLeft: 5,
+											fontSize: 16,
+											height: 40,
+											color: '#150b2e',
+											fontWeight: 'bold',
+										}}>
+											{item}
+										</Text>
+									</TouchableOpacity>}
 							/>
 						)}
-						</View>
-			</View>
-		);
+
+
+					</View>
+				</View>
+			);
+		}
 	};
 
 
@@ -120,25 +167,25 @@ export default class App extends React.Component {
 	// };
 
 
-	 _takePhoto = async () => {
+	_takePhoto = async () => {
 		if (Constants.platform.ios) {
-		  const { status: cameraStatus } = await Permissions.askAsync(
-			Permissions.CAMERA,
-		  );
-		  if (cameraStatus !== 'granted') {
-			alert('Sorry, Camera permissions not granted');
-		  }
+			const { status: cameraStatus } = await Permissions.askAsync(
+				Permissions.CAMERA,
+			);
+			if (cameraStatus !== 'granted') {
+				alert('Sorry, Camera permissions not granted');
+			}
 		}
 		let pickerResult = await ImagePicker.launchCameraAsync({
-		  mediaTypes: ImagePicker.MediaTypeOptions.All,
-		  allowsEditing: true,
-		  aspect: [3, 3],
-		  quality: 0.2,
-		  base64: true,
+			mediaTypes: ImagePicker.MediaTypeOptions.All,
+			allowsEditing: true,
+			aspect: [3, 3],
+			quality: 0.2,
+			base64: true,
 		});
 		this._handleImagePicked(pickerResult);
-		
-	  };
+
+	};
 
 	_pickImage = async () => {
 		let pickerResult = await ImagePicker.launchImageLibraryAsync({
@@ -149,7 +196,22 @@ export default class App extends React.Component {
 		this._handleImagePicked(pickerResult);
 	};
 
+	// _handleImagePicked = async pickerResult => {
+	// 	try {
+	// 		this.setState({ uploading: true });
 
+	// 		if (!pickerResult.cancelled) {
+
+	// 			const uploadUrl = pickerResult.uri
+
+	// 			this.setState({ image: uploadUrl });
+	// 		}
+	// 	}
+
+	// 	finally {
+	// 		this.setState({ uploading: false });
+	// 	}
+	// }
 
 	_handleImagePicked = async pickerResult => {
 		try {
@@ -159,11 +221,12 @@ export default class App extends React.Component {
 				var uploadUrl = await uploadImageAsync(pickerResult.uri);
 				this.setState({ image: uploadUrl });
 			}
-		} catch (e) {
-			Alert.alert("eeeeeeeee",JSON.stringify(e))
-			console.log(e);
+		}
+		catch (e) {
+
 			alert('Upload failed, sorry :(');
-		} finally {
+		}
+		finally {
 			this.setState({ uploading: false });
 		}
 	};
@@ -195,22 +258,22 @@ export default class App extends React.Component {
 					}
 				]
 			});
-			let response = await fetch(
+			const response = await fetch(
 				'https://vision.googleapis.com/v1/images:annotate?key=' +
-					Environment['GOOGLE_CLOUD_VISION_API_KEY'],
+				Environment['GOOGLE_CLOUD_VISION_API_KEY'],
 				{
 					headers: {
-						Accept: 'application/json',
+						Accept: 'application',
 						'Content-Type': 'application/json'
 					},
 					method: 'POST',
 					body: body
 				}
 			);
-			let responseJson = await response.json();
+			const responseJson = await response.json();
 			const test = responseJson.responses[0].textAnnotations[0].description.split("\n");
 			this.setState({
-				test:test,
+				test: test,
 				googleResponse: responseJson,
 				uploading: false
 			});
@@ -259,6 +322,11 @@ const styles = StyleSheet.create({
 	getStartedContainer: {
 		alignItems: 'center',
 		marginHorizontal: 50
+	},
+	EyeOff: {
+		marginTop: -10,
+		textAlign: 'right',
+		marginRight: 10,
 	},
 
 	getStartedText: {
