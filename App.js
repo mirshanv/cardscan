@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	ActivityIndicator,
 	Button,
@@ -16,11 +16,13 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker'
 import * as Permissions from 'expo-permissions'
+import * as ImageManipulator from 'expo-image-manipulator';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Constants from 'expo-constants';
 import uuid from 'uuid';
 import Environment from './config/environment';
 import * as firebase from 'firebase';
+import { render } from 'react-dom';
 
 const config = {
 	apiKey: Environment['FIREBASE_API_KEY'],
@@ -35,58 +37,23 @@ const config = {
 	? firebase.initializeApp(config).firestore()
 	: firebase.app();
 
-export default class App extends React.Component {
-	state = {
-		image: null,
-		uploading: false,
-		googleResponse: null
-	};
 
-	// async componentDidMount() {
-	// 	await Permissions.askAsync(Permissions.CAMERA_ROLL);
-	// 	await Permissions.askAsync(Permissions.CAMERA);
-	// }
+const App = () => {
 
-	render() {
-		let { image } = this.state;
-		return (
-			<View style={styles.container}>
-				<ScrollView
-					style={styles.container}
-					contentContainerStyle={styles.contentContainer}
-				>
-					<View style={styles.helpContainer}>
-						<View style={{ flexDirection: "row", padding: 10 }}>
-							<Button
-								onPress={this._pickImage}
-								title="Pick an image from camera roll"
-							/>
-							{this.state.image ?
-								<TouchableOpacity onPress={() => {
-									this.setState({ image: null })
+	const [image, SetImage] = useState(null)
+	const [uploading, SetUploading] = useState(false)
+	const [googleResponse, SetGoogleResponse] = useState(null)
+	const [test, SetTest] = useState(null)
 
-								}}>
-									<MaterialCommunityIcons
-										style={{ marginLeft: 15 }}
-										name='reload'
-										size={30}
-										color='red'
-									/>
-								</TouchableOpacity>
-								: null}
-						</View>
-						<Button onPress={this._takePhoto} title="Take a photo" />
+	useEffect(() => {
+		if (image) {
+			submitToGoogle();
+		}
+	}, [image])
 
-						{this._maybeRenderImage()}
-						{this._maybeRenderUploadingOverlay()}
-					</View>
-				</ScrollView>
-			</View>
-		);
-	}
 
-	_maybeRenderUploadingOverlay = () => {
-		if (this.state.uploading) {
+	const maybeRenderUploadingOverlay = () => {
+		if (uploading) {
 			return (
 				<View
 					style={[
@@ -103,8 +70,7 @@ export default class App extends React.Component {
 		}
 	};
 
-	_maybeRenderImage = () => {
-		let { image, googleResponse } = this.state;
+	const maybeRenderImage = () => {
 		if (!image) {
 			return;
 		} else {
@@ -112,19 +78,20 @@ export default class App extends React.Component {
 			return (
 				<View>
 					<View>
-						<Image source={{ uri: image }} style={{ width: 300, height: 300, marginTop: 10 }} />
+						<Image source={{ uri: image }} style={{ width: 250, height: 250, marginTop: 10, marginBottom: 20, borderRadius: 20 }} />
 					</View>
 
-					<Button
-						style={{ marginBottom: 20 }}
-						onPress={() => this.submitToGoogle()}
-						title="Analyze!"
-					/>
+					{/* <TouchableOpacity onPress={submitToGoogle}>
+						<View style={{ padding: 10, backgroundColor: "#395dbf", borderRadius: 30, marginTop: 10 }}>
+							<Text style={{ color: "#fff", fontWeight: "bold", alignSelf: "center" }}>Analyze</Text>
+
+						</View>
+					</TouchableOpacity> */}
 					<View style={{ marginTop: 10 }}>
-						{this.state.googleResponse && (
+						{googleResponse && (
 							<FlatList
-								data={this.state.test}
-								extraData={this.state}
+								data={test}
+								// extraData={this.state}
 								keyExtractor={(item, index) => item.id}
 								renderItem={({ item }) =>
 									<TouchableOpacity>
@@ -153,21 +120,8 @@ export default class App extends React.Component {
 	};
 
 
-	// _share = () => {
-	// 	Share.share({
-	// 		message: JSON.stringify(this.state.googleResponse.responses),
-	// 		title: 'Check it out',
-	// 		url: this.state.image
-	// 	});
-	// };
 
-	// _copyToClipboard = () => {
-	// 	Clipboard.setString(this.state.image);
-	// 	alert('Copied to clipboard');
-	// };
-
-
-	_takePhoto = async () => {
+	const takePhoto = async () => {
 		if (Constants.platform.ios) {
 			const { status: cameraStatus } = await Permissions.askAsync(
 				Permissions.CAMERA,
@@ -179,21 +133,18 @@ export default class App extends React.Component {
 		let pickerResult = await ImagePicker.launchCameraAsync({
 			mediaTypes: ImagePicker.MediaTypeOptions.All,
 			allowsEditing: true,
-			aspect: [3, 3],
-			quality: 0.2,
-			base64: true,
+
 		});
-		this._handleImagePicked(pickerResult);
+		handleImagePicked(pickerResult);
 
 	};
 
-	_pickImage = async () => {
+	const pickImage = async () => {
 		let pickerResult = await ImagePicker.launchImageLibraryAsync({
 			allowsEditing: true,
-			aspect: [4, 3]
 		});
 
-		this._handleImagePicked(pickerResult);
+		handleImagePicked(pickerResult);
 	};
 
 	// _handleImagePicked = async pickerResult => {
@@ -213,13 +164,16 @@ export default class App extends React.Component {
 	// 	}
 	// }
 
-	_handleImagePicked = async pickerResult => {
+	const handleImagePicked = async pickerResult => {
 		try {
-			this.setState({ uploading: true });
+			SetUploading(true)
 
 			if (!pickerResult.cancelled) {
 				var uploadUrl = await uploadImageAsync(pickerResult.uri);
-				this.setState({ image: uploadUrl });
+				SetImage(uploadUrl)
+				// if (uploadUrl) {
+				// 	submitToGoogle()
+				// }
 			}
 		}
 		catch (e) {
@@ -227,15 +181,15 @@ export default class App extends React.Component {
 			alert('Upload failed, sorry :(');
 		}
 		finally {
-			this.setState({ uploading: false });
+			SetUploading(false)
 		}
 	};
 
-	submitToGoogle = async () => {
+	const submitToGoogle = async () => {
 		try {
-			this.setState({ uploading: true });
-			let { image } = this.state;
-			let body = JSON.stringify({
+			SetUploading(true)
+
+			const body = JSON.stringify({
 				requests: [
 					{
 						features: [
@@ -272,16 +226,76 @@ export default class App extends React.Component {
 			);
 			const responseJson = await response.json();
 			const test = responseJson.responses[0].textAnnotations[0].description.split("\n");
-			this.setState({
-				test: test,
-				googleResponse: responseJson,
-				uploading: false
-			});
+			SetTest(test),
+				SetGoogleResponse(responseJson),
+				SetUploading(false)
+
 		} catch (error) {
 			console.log(error);
 		}
 	};
+
+
+	return (
+		<View style={styles.container}>
+			<ScrollView
+				contentContainerStyle={styles.contentContainer}
+			>
+				<View style={styles.helpContainer}>
+
+					<View style={{ alignSelf: "flex-end", marginRight: 10 }}>
+						{image ?
+							<TouchableOpacity onPress={() => {
+								SetImage(null),
+									SetTest(null)
+
+							}}>
+								<MaterialCommunityIcons
+									name='reload'
+									size={30}
+									color='red'
+								/>
+							</TouchableOpacity>
+							: null}
+					</View>
+
+
+					<View style={{ flexDirection: "row" }} >
+						<Text style={{ fontWeight: "bold", fontSize: 20, marginTop: 30 }}>Select Type</Text>
+
+					</View>
+
+					<TouchableOpacity onPress={() => {
+						pickImage(),
+							SetImage(null),
+							SetTest(null)
+					}}>
+						<View style={{ padding: 10, backgroundColor: "#395dbf", borderRadius: 30, marginTop: 10 }}>
+							<Text style={{ color: "#fff", fontWeight: "bold" }}>Pick an image from camera roll</Text>
+
+						</View>
+					</TouchableOpacity>
+
+					<TouchableOpacity onPress={() => {
+						takePhoto(),
+							SetImage(null),
+							SetTest(null)
+					}}>
+						<View style={{ padding: 10, backgroundColor: "#395dbf", borderRadius: 30, marginTop: 10 }}>
+							<Text style={{ color: "#fff", fontWeight: "bold" }}>Take a photo</Text>
+
+						</View>
+					</TouchableOpacity>
+
+					{maybeRenderImage()}
+					{maybeRenderUploadingOverlay()}
+				</View>
+			</ScrollView>
+		</View>
+	);
 }
+
+
 
 async function uploadImageAsync(uri) {
 	const blob = await new Promise((resolve, reject) => {
@@ -341,3 +355,4 @@ const styles = StyleSheet.create({
 		alignItems: 'center'
 	}
 });
+export default App;
