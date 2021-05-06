@@ -120,19 +120,6 @@ const App = () => {
 	};
 
 
-	// _share = () => {
-	// 	Share.share({
-	// 		message: JSON.stringify(this.state.googleResponse.responses),
-	// 		title: 'Check it out',
-	// 		url: this.state.image
-	// 	});
-	// };
-
-	// _copyToClipboard = () => {
-	// 	Clipboard.setString(this.state.image);
-	// 	alert('Copied to clipboard');
-	// };
-
 
 	const takePhoto = async () => {
 		if (Constants.platform.ios) {
